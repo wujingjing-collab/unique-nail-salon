@@ -144,6 +144,8 @@ body {
   display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px;
 }
 .booking-block:hover { transform: scale(1.02); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.booking-block.dragging { opacity: 0.4; transform: scale(0.95); }
+.booking-cell.drag-target { background: var(--primary-light) !important; outline: 2px dashed var(--primary); outline-offset: -2px; }
 .booking-block .b-time {
   font-size: 9px; opacity: 0.75; font-weight: 600;
   background: rgba(0,0,0,0.15); padding: 1px 6px; border-radius: 6px;
@@ -2349,6 +2351,9 @@ function renderSchedule() {
         }
         html += `<td class="booking-cell" rowspan="${slots}" style="padding:0;position:relative;">
           <div class="booking-block svc-${cat}" style="height:${h}px;${groupBorder}"
+            draggable="true"
+            ondragstart="onBookingDragStart(event,'${bk.id}')"
+            ondragend="onBookingDragEnd(event)"
             onclick="event.stopPropagation();openDetail('${bk.id}')">
             <div class="b-service">${svcDisplay}</div>
             <div class="b-time">${displayStart}–${displayEnd}</div>
@@ -2370,6 +2375,9 @@ function renderSchedule() {
           </td>`;
         } else {
           html += `<td class="booking-cell"
+            ondragover="onCellDragOver(event)"
+            ondragleave="onCellDragLeave(event)"
+            ondrop="onCellDrop(event,'${s.id}','${time}')"
             onclick="openNewBooking('${time}','${s.id}')"></td>`;
         }
       }
@@ -2379,6 +2387,136 @@ function renderSchedule() {
 
   html += '</tbody>';
   document.getElementById('scheduleTable').innerHTML = html;
+}
+
+// ===== 拖拽预约功能 =====
+let _dragBookingId = null;
+
+function onBookingDragStart(event, bookingId) {
+  _dragBookingId = bookingId;
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', bookingId);
+  event.target.classList.add('dragging');
+}
+
+function onBookingDragEnd(event) {
+  event.target.classList.remove('dragging');
+  _dragBookingId = null;
+  // 清除所有 drag-target 样式
+  document.querySelectorAll('.drag-target').forEach(el => el.classList.remove('drag-target'));
+}
+
+function onCellDragOver(event) {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  event.currentTarget.classList.add('drag-target');
+}
+
+function onCellDragLeave(event) {
+  event.currentTarget.classList.remove('drag-target');
+}
+
+function onCellDrop(event, targetStaffId, targetTime) {
+  event.preventDefault();
+  event.currentTarget.classList.remove('drag-target');
+  if (!_dragBookingId) return;
+
+  const bookingId = _dragBookingId;
+  _dragBookingId = null;
+
+  const b = bookings.find(x => x.id === bookingId);
+  if (!b) return;
+
+  // 如果目标员工和当前员工一样，且时间也一样 → 无操作
+  if (b.staffId === targetStaffId && b.time === targetTime) return;
+
+  const dateStr = fmtDate(currentDate);
+  const workingStaff = getRosterStaff(dateStr);
+  const targetStaff = workingStaff.find(s => s.id === targetStaffId);
+  if (!targetStaff) {
+    showToast(lang === 'zh' ? '该员工今天不在排班中' : 'Il dipendente non è in turno oggi');
+    return;
+  }
+
+  // 计算新的时间段
+  const newStart = toMin(targetTime);
+  const duration = toMin(b.endTime) - toMin(b.time);
+  const newEnd = newStart + duration;
+  const newEndTime = addMin(targetTime, duration);
+
+  // 检查目标员工的工作时间
+  if (newStart < toMin(targetStaff.start) || newEnd > toMin(targetStaff.end)) {
+    showToast(lang === 'zh' ? '⚠️ 超出该员工的工作时间' : '⚠️ Fuori dall\'orario di lavoro');
+    return;
+  }
+
+  // 检查目标员工在目标时间段是否有冲突（排除正在拖拽的预约）
+  const hasConflict = bookings.some(other => {
+    if (other.id === bookingId) return false;
+    if (other.staffId !== targetStaffId) return false;
+    if (other.date !== dateStr) return false;
+    const os = toMin(other.time), oe = toMin(other.endTime);
+    return newStart < oe && newEnd > os;
+  });
+
+  if (hasConflict) {
+    showToast(lang === 'zh' ? '⚠️ 该时段已有其他预约' : '⚠️ Già prenotato in questa fascia');
+    return;
+  }
+
+  // 容量检查（pedicure/wax）
+  const allSvcIds = b.serviceIds || (b.serviceId ? [b.serviceId] : []);
+  const firstSvc = getSvc(allSvcIds[0]);
+  const cat = firstSvc ? firstSvc.cat : null;
+  if (cat === 'pedicure' || cat === 'wax') {
+    const limit = cat === 'pedicure' ? 5 : 3;
+    const sameCatCount = bookings.filter(other => {
+      if (other.id === bookingId) return false;
+      if (other.date !== dateStr) return false;
+      const os = toMin(other.time), oe = toMin(other.endTime);
+      if (newStart >= oe || newEnd <= os) return false;
+      const oSvcIds = other.serviceIds || (other.serviceId ? [other.serviceId] : []);
+      const oCat = (getSvc(oSvcIds[0]) || {}).cat;
+      return oCat === cat;
+    }).length;
+    if (sameCatCount >= limit) {
+      showToast(lang === 'zh' ? `⚠️ 该时段${cat === 'pedicure' ? '脚部' : '脱毛'}已满` : `⚠️ Pieno`);
+      return;
+    }
+  }
+
+  // 检查目标时间是否在休息时段
+  const onBreak = (targetStaff.breaks || []).find(br => {
+    return newStart >= toMin(br.start) && newStart < toMin(br.end);
+  });
+  if (onBreak) {
+    showToast(lang === 'zh' ? '⚠️ 该时段是休息时间' : '⚠️ In pausa');
+    return;
+  }
+
+  // 通过所有检查 → 更新预约
+  b.staffId = targetStaffId;
+  b.time = targetTime;
+  b.endTime = newEndTime;
+  saveData();
+  renderAll();
+
+  const staffName = targetStaff.name;
+  showToast(lang === 'zh' ? `✅ 已移至 ${staffName}` : `✅ Spostato da ${staffName}`);
+}
+
+function showToast(msg) {
+  let toast = document.getElementById('dragToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'dragToast';
+    toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:#fff;padding:10px 20px;border-radius:8px;font-size:14px;z-index:9999;transition:opacity 0.3s;pointer-events:none;';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 2500);
 }
 
 // ===== ROSTER (排班管理) =====
