@@ -3595,8 +3595,16 @@ function saveBooking() {
   // ===== 保存预约 =====
   // 当有多个标准服务时，拆分为多条独立预约（方便分别分配给不同员工）
   // 自定义服务始终合并到最后一条预约中
-  const allStandardServices = selectedServiceIds.map(id => getSvc(id)).filter(Boolean);
+  let allStandardServices = selectedServiceIds.map(id => getSvc(id)).filter(Boolean);
   const hasCustom = customServiceItems.length > 0;
+  
+  // 按优先级排序：蜜蜡(1) > 光疗凝胶(2) > 足部(3) > 普通脚部(4) > 手部(最后)
+  const priorityMap = { wax: 1, gel: 2, pedicure: 3, pedicure_normal: 4, manicure: 99 };
+  allStandardServices.sort((a, b) => {
+    const pa = priorityMap[a.cat] || 99;
+    const pb = priorityMap[b.cat] || 99;
+    return pa - pb;
+  });
   
   // 计算每个独立预约的数据（多个服务时，按顺序一个接一个做）
   const bookingsToSave = [];
