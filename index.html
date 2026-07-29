@@ -1301,6 +1301,7 @@ const WAX_PKG_IDS = ['wp1','wp2','wp3','wp4','wp5','wp6','wp7','wp8','wp9','wp10
 // ===== STATE =====
 let currentDate = new Date();
 let editingId = null;
+let editingGroupId = null; // 编辑预约时保存原始 groupId
 
 // 排班表：按日期存储上班员工顺序 { '2026-07-27': ['s1','s2','s3',...], ... }
 let roster = {};
@@ -3463,7 +3464,8 @@ function saveBooking() {
   const bookingsToSave = [];
   const baseId = editingId || ('b' + Date.now());
   // 生成一个客人组ID，用于在排班表上标识同一客人的连续预约
-  const groupId = 'g' + Date.now();
+  // 编辑模式：保留原始 groupId；新建模式：生成新的 groupId
+  const groupId = editingId ? (editingGroupId || null) : ('g' + Date.now());
   let currentTime = time; // 当前服务的开始时间，前一个结束后一个开始
   
   allStandardServices.forEach((svc, idx) => {
@@ -3487,7 +3489,7 @@ function saveBooking() {
       phone: document.getElementById('bkPhone').value.trim(),
       status: document.getElementById('bkStatus').value,
       notes: document.getElementById('bkNotes').value.trim(),
-      groupId: allStandardServices.length > 1 ? groupId : null // 多服务时添加组ID
+      groupId: allStandardServices.length > 1 ? groupId : (editingId ? (editingGroupId || null) : null)
     });
     
     // 下一个服务从前一个结束时间开始
@@ -3531,10 +3533,20 @@ function saveBooking() {
   if (editingId) {
     const i = bookings.findIndex(b => b.id === editingId);
     if (i >= 0) {
-      // 编辑模式：替换第一条，如果有拆分则后续条需要额外处理
+      // 编辑模式：替换当前预约，保留 groupId
       bookings[i] = bookingsToSave[0];
-      // 如果原来有多条关联预约，这里简化处理：只更新第一条
+      // 如果编辑的是多服务组中的一条，更新同组其他预约的 customer/phone/notes（保持信息一致）
+      if (editingGroupId) {
+        bookings.forEach(bk => {
+          if (bk.groupId === editingGroupId && bk.id !== editingId) {
+            bk.customer = customer;
+            bk.phone = document.getElementById('bkPhone').value.trim();
+            bk.notes = document.getElementById('bkNotes').value.trim();
+          }
+        });
+      }
     }
+    editingGroupId = null;
   } else {
     bookingsToSave.forEach(bk => {
       bookings.push(bk);
@@ -3572,6 +3584,34 @@ function openDetail(id) {
     priceHtml += `<div class="detail-row"><span class="detail-label">${t('paidLabel')}</span><span class="detail-value" style="font-weight:700;color:var(--success);">€${paidAmount}</span></div>`;
   }
 
+  // 查找同客人的其他预约（同 groupId）
+  let groupBookingsHtml = '';
+  if (b.groupId) {
+    const groupBookings = bookings.filter(bk => bk.groupId === b.groupId && bk.id !== b.id);
+    if (groupBookings.length > 0) {
+      groupBookingsHtml = `<div style="margin-top:12px;padding-top:12px;border-top:1px dashed var(--border);">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${lang === 'zh' ? '同客人其他项目' : 'Altri servizi dello stesso cliente'}</div>`;
+      groupBookings.forEach(gb => {
+        const gStaff = getStaff(gb.staffId);
+        const gSvcIds = gb.serviceIds || (gb.serviceId ? [gb.serviceId] : []);
+        const gSvcNames = gSvcIds.map(sid => { const s = getSvc(sid); return s ? s.name : sid; }).join(', ');
+        groupBookingsHtml += `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border-light);font-size:13px;">
+          <div><span style="color:var(--muted);">${gb.time}–${gb.endTime}</span> <span style="margin-left:6px;">${gSvcNames}</span> <span style="color:var(--muted);margin-left:4px;">(${gStaff ? gStaff.name : '—'})</span></div>
+          <div style="font-weight:600;">€${gb.price || 0}</div>
+        </div>`;
+      });
+      // 计算同组总价
+      const allGroupBookings = bookings.filter(bk => bk.groupId === b.groupId);
+      const groupTotal = allGroupBookings.reduce((sum, bk) => sum + (parseFloat(bk.price) || 0), 0);
+      const groupDiscount = allGroupBookings.reduce((sum, bk) => sum + (parseFloat(bk.discount) || 0), 0);
+      const groupPaid = Math.max(0, groupTotal - groupDiscount);
+      groupBookingsHtml += `<div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-weight:700;font-size:14px;">
+        <div>${lang === 'zh' ? '合计' : 'Totale'}</div>
+        <div>€${groupPaid}</div>
+      </div></div>`;
+    }
+  }
+
   document.getElementById('detailBody').innerHTML = `
     <div class="detail-row"><span class="detail-label">${t('customer2')}</span><span class="detail-value">${b.customer}</span></div>
     <div class="detail-row"><span class="detail-label">${t('phone2')}</span><span class="detail-value">${b.phone||'—'}</span></div>
@@ -3582,6 +3622,7 @@ function openDetail(id) {
     <div class="detail-row"><span class="detail-label">${t('staff2')}</span><span class="detail-value">${staff ? staff.name : '—'}</span></div>
     <div class="detail-row"><span class="detail-label">${t('status2')}</span><span class="detail-status ${sm[b.status]}">${stMap[b.status]}</span></div>
     ${b.notes ? `<div class="detail-row"><span class="detail-label">${t('notes2')}</span><span class="detail-value">${b.notes}</span></div>` : ''}
+    ${groupBookingsHtml}
   `;
   document.getElementById('detailModal').classList.add('show');
 
@@ -3599,6 +3640,8 @@ function editBooking() {
   closeModal('detailModal');
 
   editingId = b.id;
+  // 保存原始 groupId，编辑时保留
+  editingGroupId = b.groupId || null;
   document.querySelector('#bookingModal .modal-title').textContent = t('editBooking');
   document.getElementById('bkCustomer').value = b.customer;
   document.getElementById('bkPhone').value = b.phone || '';
