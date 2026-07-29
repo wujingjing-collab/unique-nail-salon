@@ -1,0 +1,10 @@
+node_modules/
+package.json
+package-lock.json
+*.txt
+app2.html
+app.html
+unique-nail-salon-app.html
+Unique Nail Salon.html
+logo.png
+logo_app_icon.jpg
