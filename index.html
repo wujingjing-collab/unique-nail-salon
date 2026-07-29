@@ -3598,12 +3598,19 @@ function saveBooking() {
   let allStandardServices = selectedServiceIds.map(id => getSvc(id)).filter(Boolean);
   const hasCustom = customServiceItems.length > 0;
   
-  // 按优先级排序：蜜蜡(1) > 光疗凝胶(2) > 足部(3) > 普通脚部(4) > 手部(最后)
-  const priorityMap = { wax: 1, gel: 2, pedicure: 3, pedicure_normal: 4, manicure: 99 };
+  // 按优先级排序：光疗凝胶(1) > 脚semipermanente(2) > 脱毛(3) > 脚普通甲油(4) > 手部(最后)
+  // 特殊规则：如果同时有光疗和脚普通甲油，光疗优先（要烘干）；脚semip第二
   allStandardServices.sort((a, b) => {
-    const pa = priorityMap[a.cat] || 99;
-    const pb = priorityMap[b.cat] || 99;
-    return pa - pb;
+    // 判断脚semip vs 脚普通
+    const isPediSemip = (svc) => svc.cat === 'pedicure' && /semip/i.test(svc.name);
+    const getPriority = (svc) => {
+      if (svc.cat === 'gel') return 1;           // 光疗凝胶第一
+      if (isPediSemip(svc)) return 2;             // 脚semipermanente第二
+      if (svc.cat === 'wax') return 3;            // 脱毛第三
+      if (svc.cat === 'pedicure') return 4;       // 脚普通甲油第四
+      return 99;                                   // 手部等其他最后
+    };
+    return getPriority(a) - getPriority(b);
   });
   
   // 计算每个独立预约的数据（多个服务时，按顺序一个接一个做）
