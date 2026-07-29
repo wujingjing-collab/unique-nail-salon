@@ -3622,23 +3622,35 @@ function saveBooking() {
   const groupId = editingId ? (editingGroupId || null) : ('g' + Date.now());
   let currentTime = time; // 当前服务的开始时间，前一个结束后一个开始
   
+  // 编辑模式下，收集同组各预约原有的 staffId（按服务ID映射），用于保留分配
+  const existingStaffMap = {}; // serviceId -> staffId
+  if (editingGroupId) {
+    bookings.filter(bk => bk.groupId === editingGroupId).forEach(bk => {
+      const svcIds = bk.serviceIds || (bk.serviceId ? [bk.serviceId] : []);
+      svcIds.forEach(sid => { if (!existingStaffMap[sid]) existingStaffMap[sid] = bk.staffId; });
+    });
+  }
+  
   allStandardServices.forEach((svc, idx) => {
     const svcDuration = svc.duration;
     const svcEndTime = addMin(currentTime, svcDuration);
     const svcPrice = svc.price;
     
+    // 编辑模式：优先保留原有的员工分配；新建或无映射时用当前选择的 staffId
+    const svcStaffId = existingStaffMap[svc.id] || staffId;
+    
     bookingsToSave.push({
-      id: editingId ? baseId : (baseId + '_' + idx),
+      id: editingId ? (baseId + '_' + idx) : (baseId + '_' + idx),
       date: dateStr,
       time: currentTime,
       endTime: svcEndTime,
-      staffId: staffId,
+      staffId: svcStaffId,
       serviceIds: [svc.id],
       serviceId: svc.id,
       customServices: (idx === allStandardServices.length - 1 && hasCustom) ? [...customServiceItems] : [],
       duration: svcDuration,
       price: svcPrice,
-      discount: idx === 0 ? discount : 0, // 折扣只给第一条
+      discount: idx === 0 ? discount: 0, // 折扣只给第一条
       customer: customer,
       phone: document.getElementById('bkPhone').value.trim(),
       status: document.getElementById('bkStatus').value,
@@ -3834,7 +3846,6 @@ function editBooking() {
     selectedServiceIds = b.serviceIds ? [...b.serviceIds] : (b.serviceId ? [b.serviceId] : []);
     customServiceItems = b.customServices ? [...b.customServices] : [];
   }
-  customServiceItems = b.customServices ? [...b.customServices] : [];
   renderSelectedServices();
   recalcServiceTotals();
   document.getElementById('bkServiceSearch').value = '';
