@@ -3603,6 +3603,7 @@ function saveBooking() {
   const baseId = editingId || ('b' + Date.now());
   // 生成一个客人组ID，用于在排班表上标识同一客人的连续预约
   // 编辑模式：保留原始 groupId；新建模式：生成新的 groupId
+  // 如果编辑模式下只有一个服务了，但原来有 groupId，仍然保留（方便后续再加服务时保持关联）
   const groupId = editingId ? (editingGroupId || null) : ('g' + Date.now());
   let currentTime = time; // 当前服务的开始时间，前一个结束后一个开始
   
@@ -3669,21 +3670,21 @@ function saveBooking() {
   }
 
   if (editingId) {
-    const i = bookings.findIndex(b => b.id === editingId);
-    if (i >= 0) {
-      // 编辑模式：替换当前预约，保留 groupId
-      bookings[i] = bookingsToSave[0];
-      // 如果编辑的是多服务组中的一条，更新同组其他预约的 customer/phone/notes（保持信息一致）
-      if (editingGroupId) {
-        bookings.forEach(bk => {
-          if (bk.groupId === editingGroupId && bk.id !== editingId) {
-            bk.customer = customer;
-            bk.phone = document.getElementById('bkPhone').value.trim();
-            bk.notes = document.getElementById('bkNotes').value.trim();
-          }
-        });
+    // 编辑模式：删除同 groupId 的所有旧预约，然后添加新的
+    if (editingGroupId) {
+      // 删除同组的所有旧预约
+      for (let j = bookings.length - 1; j >= 0; j--) {
+        if (bookings[j].groupId === editingGroupId) {
+          bookings.splice(j, 1);
+        }
       }
+    } else {
+      // 没有 groupId，只删除当前编辑的这一条
+      const i = bookings.findIndex(b => b.id === editingId);
+      if (i >= 0) bookings.splice(i, 1);
     }
+    // 添加新的预约（可能是1条或多条）
+    bookingsToSave.forEach(bk => bookings.push(bk));
     editingGroupId = null;
   } else {
     bookingsToSave.forEach(bk => {
@@ -3791,8 +3792,33 @@ function editBooking() {
   document.getElementById('bkDiscount').value = b.discount || 0;
   updatePaidAmount();
 
-  // 加载已选服务
-  selectedServiceIds = b.serviceIds ? [...b.serviceIds] : (b.serviceId ? [b.serviceId] : []);
+  // 加载已选服务 — 如果有 groupId，加载同组所有预约的服务
+  if (b.groupId) {
+    const groupBookings = bookings.filter(bk => bk.groupId === b.groupId);
+    // 按时间排序
+    groupBookings.sort((a, bk) => toMin(a.time) - toMin(bk.time));
+    selectedServiceIds = [];
+    customServiceItems = [];
+    groupBookings.forEach(gb => {
+      const svcIds = gb.serviceIds || (gb.serviceId ? [gb.serviceId] : []);
+      svcIds.forEach(sid => { if (!selectedServiceIds.includes(sid)) selectedServiceIds.push(sid); });
+      if (gb.customServices && gb.customServices.length > 0) {
+        gb.customServices.forEach(c => customServiceItems.push({...c}));
+      }
+    });
+    // 编辑ID设为同组第一条的ID
+    editingId = groupBookings[0].id;
+    document.getElementById('bkTime').value = groupBookings[0].time;
+    // 价格设为同组总价
+    const groupTotal = groupBookings.reduce((sum, gb) => sum + (parseFloat(gb.price) || 0), 0);
+    const groupDiscount = groupBookings.reduce((sum, gb) => sum + (parseFloat(gb.discount) || 0), 0);
+    document.getElementById('bkPrice').value = groupTotal;
+    document.getElementById('bkDiscount').value = groupDiscount;
+    updatePaidAmount();
+  } else {
+    selectedServiceIds = b.serviceIds ? [...b.serviceIds] : (b.serviceId ? [b.serviceId] : []);
+    customServiceItems = b.customServices ? [...b.customServices] : [];
+  }
   customServiceItems = b.customServices ? [...b.customServices] : [];
   renderSelectedServices();
   recalcServiceTotals();
