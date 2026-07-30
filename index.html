@@ -618,6 +618,10 @@ body {
         </select>
       </div>
       <div class="form-group">
+        <label id="lblDate">日期</label>
+        <input type="date" id="bkDate">
+      </div>
+      <div class="form-group">
         <label id="lblTime">时间</label>
         <input type="time" id="bkTime" value="10:00">
       </div>
@@ -998,6 +1002,7 @@ const I18N = {
     staffLabel: '员工',
     autoAssign: '🎲 随机分配',
     time: '时间',
+    date2: '日期',
     autoHint: '✅ 系统将自动分配第一个有空闲时间的员工',
     notes: '备注',
     notesPh: '特殊要求...',
@@ -1192,6 +1197,7 @@ const I18N = {
     staffLabel: 'Operatrice',
     autoAssign: '🎲 Auto',
     time: 'Ora',
+    date2: 'Data',
     autoHint: '✅ Assegnazione automatica alla prima operatrice disponibile',
     notes: 'Note',
     notesPh: 'Richieste speciali...',
@@ -1496,6 +1502,7 @@ let _renderAll = function() {
   document.getElementById('lblDiscount').innerHTML = t('discountLabel') + ' <span style="font-size:11px;color:var(--text-light);font-weight:400;" id="discountHint">' + t('discountHint') + '</span>';
   document.getElementById('lblPaid').textContent = t('paidLabel');
   document.getElementById('lblStaff').textContent = t('staffLabel');
+  document.getElementById('lblDate').textContent = t('date2');
   document.getElementById('lblTime').textContent = t('time');
   document.getElementById('autoAssignHint').textContent = t('autoHint');
   document.getElementById('lblNotes').textContent = t('notes');
@@ -3257,6 +3264,7 @@ function openNewBooking(time, staffId) {
   editingGroupId = null;
   window._walkIn = false;
   document.querySelector('#bookingModal .modal-title').textContent = t('newBooking');
+  document.getElementById('bkDate').value = fmtDate(currentDate);
   document.getElementById('bkCustomer').value = '';
   document.getElementById('bkCustomer').placeholder = (lang === 'zh' ? '输入顾客姓名' : 'Nome cliente');
   document.getElementById('bkPhone').value = '';
@@ -3584,7 +3592,8 @@ function saveBooking() {
       time = String(h).padStart(2, '0') + ':' + m;
     }
   }
-  const dateStr = fmtDate(currentDate);
+  // 使用日期选择器的日期，而不是当前排班表日期
+  const dateStr = document.getElementById('bkDate').value || fmtDate(currentDate);
   let staffId = document.getElementById('bkStaff').value;
   const duration = parseInt(document.getElementById('bkDuration').value) || 30;
   const price = parseFloat(document.getElementById('bkPrice').value) || 0;
@@ -3890,6 +3899,7 @@ function editBooking() {
   // 保存原始 groupId，编辑时保留
   editingGroupId = b.groupId || null;
   document.querySelector('#bookingModal .modal-title').textContent = t('editBooking');
+  document.getElementById('bkDate').value = b.date;
   document.getElementById('bkCustomer').value = b.customer;
   document.getElementById('bkPhone').value = b.phone || '';
   document.getElementById('bkNotes').value = b.notes || '';
@@ -3965,6 +3975,7 @@ function editBookingTime() {
   document.querySelector('#bookingModal .modal-title').textContent = (lang === 'zh' ? '修改时间' : 'Modifica orario') + ' — ' + b.customer;
 
   // 加载当前预约的数据
+  document.getElementById('bkDate').value = b.date;
   document.getElementById('bkCustomer').value = b.customer;
   document.getElementById('bkPhone').value = b.phone || '';
   document.getElementById('bkNotes').value = b.notes || '';
