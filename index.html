@@ -599,7 +599,10 @@ body {
       </div>
       <!-- 3. 顾客信息（排第三） -->
       <div class="form-group" style="position:relative;">
-        <label id="lblCustomer">顾客姓名</label>
+        <label id="lblCustomer" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>顾客姓名</span>
+          <button type="button" onclick="quickWalkIn()" id="btnWalkIn" style="font-size:11px;padding:2px 8px;background:var(--primary);color:#fff;border:none;border-radius:4px;cursor:pointer;">🚶 Walk-in</button>
+        </label>
         <input type="text" id="bkCustomer" placeholder="输入顾客姓名"
           oninput="searchCustomer()" onfocus="searchCustomer()" autocomplete="off">
         <div id="customerResults" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.1);z-index:200;margin-top:2px;"></div>
@@ -3249,8 +3252,10 @@ function selectCalDate(dateStr) {
 function openNewBooking(time, staffId) {
   editingId = null;
   editingGroupId = null;
+  window._walkIn = false;
   document.querySelector('#bookingModal .modal-title').textContent = t('newBooking');
   document.getElementById('bkCustomer').value = '';
+  document.getElementById('bkCustomer').placeholder = (lang === 'zh' ? '输入顾客姓名' : 'Nome cliente');
   document.getElementById('bkPhone').value = '';
   document.getElementById('bkNotes').value = '';
   document.getElementById('bkServiceSearch').value = '';
@@ -3259,6 +3264,7 @@ function openNewBooking(time, staffId) {
   document.getElementById('bkEndTime').value = '';
   document.getElementById('bkPrice').value = '0';
   document.getElementById('bkDiscount').value = '0';
+  document.getElementById('bkStatus').value = 'arrived';
   updatePaidAmount();
 
   const dateStr = fmtDate(currentDate);
@@ -3548,8 +3554,17 @@ function findFreeStaff(dateStr, startTime, duration, serviceCat) {
 }
 
 function saveBooking() {
-  const customer = document.getElementById('bkCustomer').value.trim();
-  if (!customer) { alert(t('enterCustomer')); return; }
+  var customer = document.getElementById('bkCustomer').value.trim();
+  // Walk-in 模式：允许无名字保存
+  if (!customer) {
+    if (window._walkIn) {
+      customer = '🚶 Walk-in';
+    } else {
+      alert(t('enterCustomer'));
+      return;
+    }
+  }
+  window._walkIn = false;
   if (selectedServiceIds.length === 0 && customServiceItems.length === 0) { alert(lang === 'zh' ? '请选择或添加服务项目' : 'Seleziona o aggiungi un servizio'); return; }
   const timeRaw = document.getElementById('bkTime').value;
   // 统一时间格式为 HH:MM（处理 Safari 可能返回的 AM/PM 格式）
@@ -4029,6 +4044,19 @@ function markNoShow() {
     closeModal('detailModal');
     renderAll();
   }
+}
+
+// Walk-in 快捷功能：客人到店无预约，快速添加
+function quickWalkIn() {
+  var customerEl = document.getElementById('bkCustomer');
+  // 生成一个唯一的 walk-in 标识
+  var now = new Date();
+  var walkInId = 'W' + String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0');
+  customerEl.value = '🚶 ' + (lang === 'zh' ? 'Walk-in' : 'Walk-in') + ' ' + walkInId;
+  customerEl.placeholder = (lang === 'zh' ? 'Walk-in 客人（可修改为真名）' : 'Walk-in (puoi modificare)');
+  document.getElementById('bkStatus').value = 'arrived';  // 自动设为已到店
+  document.getElementById('bkPhone').value = '';
+  window._walkIn = true;
 }
 
 function closeModal(id) {
