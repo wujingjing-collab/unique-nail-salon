@@ -4260,7 +4260,7 @@ function startCloudSync() {
       if (Array.isArray(data.bookings)) {
         bookings = data.bookings.map(sanitizeBooking).filter(Boolean);
       }
-      if (data.roster && typeof data.roster === 'object') {
+      if (data.roster && typeof data.roster === 'object' && Object.keys(data.roster).length > 0) {
         roster = {};
         Object.keys(data.roster).forEach(function(k) {
           if (Array.isArray(data.roster[k])) {
@@ -4468,7 +4468,7 @@ if (cloudReady) {
         if (Array.isArray(data.bookings)) {
           bookings = data.bookings.map(sanitizeBooking).filter(Boolean);
         }
-        if (data.roster && typeof data.roster === 'object') {
+        if (data.roster && typeof data.roster === 'object' && Object.keys(data.roster).length > 0) {
           roster = {};
           Object.keys(data.roster).forEach(function(k) {
             if (Array.isArray(data.roster[k])) {
