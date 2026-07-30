@@ -621,6 +621,10 @@ body {
         <input type="number" id="bkDuration" value="30" min="5" step="5">
       </div>
       <div class="form-group">
+        <label id="lblEndTime">结束时间</label>
+        <input type="time" id="bkEndTime" value="10:30">
+      </div>
+      <div class="form-group">
         <label id="lblPrice">价格 (€)</label>
         <input type="number" id="bkPrice" value="0" min="0" step="1" placeholder="输入价格" oninput="updatePaidAmount()">
       </div>
@@ -969,6 +973,7 @@ const I18N = {
     serviceItem: '服务项目',
     serviceSearchPh: '输入关键字搜索服务...',
     durationLabel: '时长(分钟)',
+    endTime: '结束时间',
     priceLabel: '价格 (€)',
     discountLabel: '折扣 (€)',
     discountHint: '店家承担，不影响员工业绩',
@@ -1159,6 +1164,7 @@ const I18N = {
     serviceItem: 'Servizio',
     serviceSearchPh: 'Cerca servizio...',
     durationLabel: 'Durata (min)',
+    endTime: 'Fine',
     priceLabel: 'Prezzo (€)',
     discountLabel: 'Sconto (€)',
     discountHint: 'A carico del salone, non influisce sulla commissione',
@@ -1464,6 +1470,7 @@ let _renderAll = function() {
   document.getElementById('lblService').textContent = t('serviceItem');
   document.getElementById('bkServiceSearch').placeholder = t('serviceSearchPh');
   document.getElementById('lblDuration').textContent = t('durationLabel');
+  document.getElementById('lblEndTime').textContent = t('endTime');
   document.getElementById('lblPrice').textContent = t('priceLabel');
   document.getElementById('lblDiscount').innerHTML = t('discountLabel') + ' <span style="font-size:11px;color:var(--text-light);font-weight:400;" id="discountHint">' + t('discountHint') + '</span>';
   document.getElementById('lblPaid').textContent = t('paidLabel');
@@ -3219,6 +3226,7 @@ function selectCalDate(dateStr) {
 // ===== MODAL =====
 function openNewBooking(time, staffId) {
   editingId = null;
+  editingGroupId = null;
   document.querySelector('#bookingModal .modal-title').textContent = t('newBooking');
   document.getElementById('bkCustomer').value = '';
   document.getElementById('bkPhone').value = '';
@@ -3226,6 +3234,7 @@ function openNewBooking(time, staffId) {
   document.getElementById('bkServiceSearch').value = '';
   document.getElementById('serviceResults').style.display = 'none';
   document.getElementById('bkDuration').value = '30';
+  document.getElementById('bkEndTime').value = '';
   document.getElementById('bkPrice').value = '0';
   document.getElementById('bkDiscount').value = '0';
   updatePaidAmount();
@@ -3374,6 +3383,19 @@ function recalcServiceTotals() {
   });
   document.getElementById('bkDuration').value = totalDuration || 30;
   document.getElementById('bkPrice').value = totalPrice || 0;
+  // 自动更新结束时间 = 开始时间 + 总时长
+  const timeRaw = document.getElementById('bkTime').value;
+  if (timeRaw) {
+    const match = timeRaw.match(/(\d{1,2}):(\d{2})/);
+    if (match) {
+      let h = parseInt(match[1], 10);
+      const m = match[2];
+      if (/PM|pm/i.test(timeRaw) && h < 12) h += 12;
+      if (/AM|am/i.test(timeRaw) && h === 12) h = 0;
+      const time = String(h).padStart(2, '0') + ':' + m;
+      document.getElementById('bkEndTime').value = addMin(time, totalDuration || 30);
+    }
+  }
   updatePaidAmount();
 }
 
@@ -3527,7 +3549,9 @@ function saveBooking() {
   const duration = parseInt(document.getElementById('bkDuration').value) || 30;
   const price = parseFloat(document.getElementById('bkPrice').value) || 0;
   const discount = parseFloat(document.getElementById('bkDiscount').value) || 0;
-  const endTime = addMin(time, duration);
+  // 结束时间：优先使用手动设置的值，否则自动计算
+  const manualEndTime = document.getElementById('bkEndTime').value;
+  const endTime = (manualEndTime && toMin(manualEndTime) > toMin(time)) ? manualEndTime : addMin(time, duration);
 
   if (staffId === 'auto') {
     // 自动分配：用改进的 findFreeStaff
@@ -3816,6 +3840,7 @@ function editBooking() {
   document.getElementById('bkPhone').value = b.phone || '';
   document.getElementById('bkNotes').value = b.notes || '';
   document.getElementById('bkTime').value = b.time;
+  document.getElementById('bkEndTime').value = b.endTime || '';
   document.getElementById('bkStatus').value = b.status;
   document.getElementById('bkDuration').value = b.duration || 30;
   document.getElementById('bkPrice').value = b.price != null ? b.price : 0;
@@ -3839,6 +3864,7 @@ function editBooking() {
     // 编辑ID设为同组第一条的ID
     editingId = groupBookings[0].id;
     document.getElementById('bkTime').value = groupBookings[0].time;
+    document.getElementById('bkEndTime').value = groupBookings[groupBookings.length - 1].endTime || '';
     // 价格设为同组总价
     const groupTotal = groupBookings.reduce((sum, gb) => sum + (parseFloat(gb.price) || 0), 0);
     const groupDiscount = groupBookings.reduce((sum, gb) => sum + (parseFloat(gb.discount) || 0), 0);
