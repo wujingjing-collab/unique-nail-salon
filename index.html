@@ -680,15 +680,15 @@ body {
     <div class="modal-body" id="detailBody"></div>
     <div class="modal-footer" id="detailFooter" style="flex-direction:column;gap:8px;">
       <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;width:100%;">
-        <button class="btn btn-danger" onclick="cancelBooking()" id="btnCloseDetail" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;">取消预约</button>
-        <button class="btn btn-primary" onclick="editBooking()" id="btnEdit" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;">修改</button>
-        <button class="btn btn-secondary" onclick="editBookingTime()" id="btnEditTime" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;">改时间</button>
+        <button class="btn btn-danger" onclick="cancelBooking()" id="btnCloseDetail" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;">✕ 取消</button>
+        <button class="btn btn-primary" onclick="editBooking()" id="btnEdit" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;">✎ 编辑</button>
+        <button class="btn btn-secondary" onclick="editBookingTime()" id="btnEditTime" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;">⚙️ 调整</button>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;width:100%;">
-        <button class="btn btn-primary" onclick="markArrived()" id="btnArrived" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;background:var(--success);">已到店</button>
-        <button class="btn btn-primary" onclick="completeBooking()" id="btnComplete" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;background:#4a7da8;">完成</button>
-        <button class="btn btn-primary" onclick="restoreBooking()" id="btnRestore" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;background:var(--success);display:none;">恢复</button>
-        <button class="btn btn-danger" onclick="markNoShow()" id="btnNoShow" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;background:#8b2020;">放鸽子</button>
+        <button class="btn btn-primary" onclick="markArrived()" id="btnArrived" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;background:var(--success);">✅ 到店</button>
+        <button class="btn btn-primary" onclick="completeBooking()" id="btnComplete" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;background:#4a7da8;">💰 结账</button>
+        <button class="btn btn-primary" onclick="restoreBooking()" id="btnRestore" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;background:var(--success);display:none;">↩️ 恢复</button>
+        <button class="btn btn-danger" onclick="markNoShow()" id="btnNoShow" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;background:#8b2020;">🕊️ 未到</button>
       </div>
     </div>
   </div>
@@ -1010,17 +1010,23 @@ const I18N = {
     confirmed: '已确认',
     pending: '待确认',
     arrived: '已到店',
+    arrivedBtn: '✅ 到店',
     completed: '已完成',
     cancelled: '已取消',
     noShow: '放鸽子',
+    noShowBtn: '🕊️ 未到',
     cancel: '取消',
     save: '保存',
     close: '关闭',
+    cancelBtn: '✕ 取消',
     cancelBooking: '取消预约',
     markComplete: '标记完成',
+    checkout: '💰 结账',
     restoreBooking: '恢复预约',
-    edit: '修改',
+    restore: '↩️ 恢复',
+    edit: '✎ 编辑',
     editTime: '改时间',
+    adjust: '⚙️ 调整',
     detailTitle: '预约详情',
     customer2: '顾客',
     phone2: '电话',
@@ -1205,17 +1211,23 @@ const I18N = {
     confirmed: 'Confermato',
     pending: 'In attesa',
     arrived: 'Arrivato',
+    arrivedBtn: '✅ Arrivato',
     completed: 'Completato',
     cancelled: 'Annullato',
     noShow: 'No show',
+    noShowBtn: '🕊️ Assente',
     cancel: 'Annulla',
     save: 'Salva',
     close: 'Chiudi',
+    cancelBtn: '✕ Annulla',
     cancelBooking: 'Annulla prenotazione',
     markComplete: 'Completato',
+    checkout: '💰 Paga',
     restoreBooking: 'Ripristina',
-    edit: 'Modifica',
+    restore: '↩️ Ripristina',
+    edit: '✎ Modifica',
     editTime: 'Mod. orario',
+    adjust: '⚙️ Regola',
     detailTitle: 'Dettaglio prenotazione',
     customer2: 'Cliente',
     phone2: 'Telefono',
@@ -1517,13 +1529,13 @@ let _renderAll = function() {
   document.getElementById('btnCancelBooking').textContent = t('cancel');
   document.getElementById('btnSaveBooking').textContent = t('save');
   document.getElementById('btnCancelBooking2').textContent = t('cancelBooking');
-  document.getElementById('btnCloseDetail').textContent = t('close');
-  document.getElementById('btnComplete').textContent = t('markComplete');
-  document.getElementById('btnRestore').textContent = t('restoreBooking');
-  document.getElementById('btnArrived').textContent = t('arrived');
-  document.getElementById('btnNoShow').textContent = t('noShow');
+  document.getElementById('btnCloseDetail').textContent = t('cancelBtn');
+  document.getElementById('btnComplete').textContent = t('checkout');
+  document.getElementById('btnRestore').textContent = t('restore');
+  document.getElementById('btnArrived').textContent = t('arrivedBtn');
+  document.getElementById('btnNoShow').textContent = t('noShowBtn');
   document.getElementById('btnEdit').textContent = t('edit');
-  document.getElementById('btnEditTime').textContent = t('editTime');
+  document.getElementById('btnEditTime').textContent = t('adjust');
   document.getElementById('skillCancelBtn').textContent = t('close');
   document.getElementById('skillSaveBtn').textContent = t('saveBtn');
 
