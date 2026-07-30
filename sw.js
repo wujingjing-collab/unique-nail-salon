@@ -1,4 +1,4 @@
-const CACHE_NAME = 'unique-nail-v3';
+const CACHE_NAME = 'unique-nail-v4';
 
 // 需要预缓存的资源
 const PRE_CACHE = [
