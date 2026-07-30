@@ -400,9 +400,11 @@ body {
 .status-confirmed { background: rgba(123,196,164,0.2); color: #4a8a6a; }
 .status-pending { background: rgba(232,196,124,0.2); color: #9a7d3a; }
 .status-arrived { background: rgba(123,196,164,0.3); color: #2d7a4a; font-weight:700; }
+.status-doing { background: rgba(232,160,64,0.2); color: #b87020; font-weight:700; }
 .status-completed { background: rgba(107,184,224,0.2); color: #4a7da8; }
 .status-cancelled { background: rgba(224,124,124,0.2); color: #b04a4a; }
 .status-no_show { background: rgba(180,80,80,0.25); color: #8b2020; font-weight:700; }
+.status-checkout { background: rgba(45,138,74,0.2); color: #1d6a3a; font-weight:700; }
 
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -678,17 +680,21 @@ body {
       <button class="modal-close" onclick="closeModal('detailModal')">×</button>
     </div>
     <div class="modal-body" id="detailBody"></div>
-    <div class="modal-footer" id="detailFooter" style="flex-direction:column;gap:8px;">
-      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;width:100%;">
-        <button class="btn btn-danger" onclick="cancelBooking()" id="btnCloseDetail" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;">✕ 取消</button>
-        <button class="btn btn-primary" onclick="editBooking()" id="btnEdit" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;">✎ 编辑</button>
-        <button class="btn btn-secondary" onclick="editBookingTime()" id="btnEditTime" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;">✏️ 单改</button>
+    <div class="modal-footer" id="detailFooter" style="flex-direction:column;gap:6px;">
+      <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:center;width:100%;">
+        <button class="btn btn-danger" onclick="cancelBooking()" id="btnCloseDetail" style="flex:1;min-width:70px;font-size:11px;padding:7px 2px;">✕ 取消</button>
+        <button class="btn btn-primary" onclick="editBooking()" id="btnEdit" style="flex:1;min-width:70px;font-size:11px;padding:7px 2px;">✎ 编辑</button>
+        <button class="btn btn-secondary" onclick="editBookingTime()" id="btnEditTime" style="flex:1;min-width:70px;font-size:11px;padding:7px 2px;">✏️ 单改</button>
+        <button class="btn btn-secondary" onclick="markDoing()" id="btnDoing" style="flex:1;min-width:70px;font-size:11px;padding:7px 2px;background:#e8a040;color:#fff;">▶️ 进行</button>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;width:100%;">
-        <button class="btn btn-primary" onclick="markArrived()" id="btnArrived" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;background:var(--success);">✅ 到店</button>
-        <button class="btn btn-primary" onclick="completeBooking()" id="btnComplete" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;background:#4a7da8;">💰 结账</button>
-        <button class="btn btn-primary" onclick="restoreBooking()" id="btnRestore" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;background:var(--success);display:none;">↩️ 恢复</button>
-        <button class="btn btn-danger" onclick="markNoShow()" id="btnNoShow" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;background:#8b2020;">🕊️ 未到</button>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:center;width:100%;">
+        <button class="btn btn-primary" onclick="markArrived()" id="btnArrived" style="flex:1;min-width:70px;font-size:11px;padding:7px 2px;background:var(--success);">✅ 到店</button>
+        <button class="btn btn-primary" onclick="completeBooking()" id="btnComplete" style="flex:1;min-width:70px;font-size:11px;padding:7px 2px;background:#4a7da8;">✔️ 完成</button>
+        <button class="btn btn-primary" onclick="checkoutBooking()" id="btnCheckout" style="flex:1;min-width:70px;font-size:11px;padding:7px 2px;background:#2d8a4a;">💰 结账</button>
+        <button class="btn btn-danger" onclick="markNoShow()" id="btnNoShow" style="flex:1;min-width:70px;font-size:11px;padding:7px 2px;background:#8b2020;">🕊️ 未到</button>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:center;width:100%;">
+        <button class="btn btn-primary" onclick="restoreBooking()" id="btnRestore" style="flex:1;min-width:70px;font-size:11px;padding:7px 2px;background:var(--success);display:none;">↩️ 恢复</button>
       </div>
     </div>
   </div>
@@ -1011,8 +1017,13 @@ const I18N = {
     pending: '待确认',
     arrived: '已到店',
     arrivedBtn: '✅ 到店',
+    doing: '进行中',
+    doingBtn: '▶️ 进行',
     completed: '已完成',
     cancelled: '已取消',
+    checkout: '已结账',
+    checkoutBtn: '💰 结账',
+    completedBtn: '✔️ 完成',
     noShow: '放鸽子',
     noShowBtn: '🕊️ 未到',
     cancel: '取消',
@@ -1212,8 +1223,13 @@ const I18N = {
     pending: 'In attesa',
     arrived: 'Arrivato',
     arrivedBtn: '✅ Arrivato',
+    doing: 'In corso',
+    doingBtn: '▶️ In corso',
     completed: 'Completato',
     cancelled: 'Annullato',
+    checkout: 'Pagato',
+    checkoutBtn: '💰 Pagato',
+    completedBtn: '✔️ Fatto',
     noShow: 'No show',
     noShowBtn: '🕊️ Assente',
     cancel: 'Annulla',
@@ -1530,7 +1546,9 @@ let _renderAll = function() {
   document.getElementById('btnSaveBooking').textContent = t('save');
   document.getElementById('btnCancelBooking2').textContent = t('cancelBooking');
   document.getElementById('btnCloseDetail').textContent = t('cancelBtn');
-  document.getElementById('btnComplete').textContent = t('checkout');
+  document.getElementById('btnComplete').textContent = t('completedBtn');
+  document.getElementById('btnCheckout').textContent = t('checkoutBtn');
+  document.getElementById('btnDoing').textContent = t('doingBtn');
   document.getElementById('btnRestore').textContent = t('restore');
   document.getElementById('btnArrived').textContent = t('arrivedBtn');
   document.getElementById('btnNoShow').textContent = t('noShowBtn');
@@ -1696,7 +1714,7 @@ function getStaffPerfDetail(staffId, dateStr) {
 function getStaffPerfDetailRange(staffId, startDate, endDate) {
   const myBk = bookings.filter(b => {
     if (b.date < startDate || b.date > endDate) return false;
-    if (b.status !== 'confirmed' && b.status !== 'arrived' && b.status !== 'completed') return false;
+    if (b.status !== 'confirmed' && b.status !== 'arrived' && b.status !== 'doing' && b.status !== 'completed' && b.status !== 'checkout') return false;
     return b.staffId === staffId;
   });
   let gelRev = 0, massageRev = 0, otherRev = 0;
@@ -2868,7 +2886,7 @@ function rebuildCustomers() {
 
 // ===== 员工业绩统计 =====
 function getStaffPerf(staffId, dateStr) {
-  const dayBk = bookings.filter(b => b.date === dateStr && (b.status === 'confirmed' || b.status === 'arrived' || b.status === 'completed') && b.staffId === staffId);
+  const dayBk = bookings.filter(b => b.date === dateStr && (b.status === 'confirmed' || b.status === 'arrived' || b.status === 'doing' || b.status === 'completed' || b.status === 'checkout') && b.staffId === staffId);
   let revenue = 0;
   dayBk.forEach(b => { revenue += parseFloat(b.price) || 0; });
   return { revenue, count: dayBk.length };
@@ -3828,8 +3846,8 @@ function openDetail(id) {
   if (!b) return;
   editingId = id;
   const staff = getStaff(b.staffId);
-  const sm = { confirmed:'status-confirmed', pending:'status-pending', arrived:'status-arrived', completed:'status-completed', cancelled:'status-cancelled', no_show:'status-no_show' };
-  const stMap = { confirmed: t('confirmed'), pending: t('pending'), arrived: t('arrived'), completed: t('completed'), cancelled: t('cancelled'), no_show: t('noShow') };
+  const sm = { confirmed:'status-confirmed', pending:'status-pending', arrived:'status-arrived', doing:'status-doing', completed:'status-completed', cancelled:'status-cancelled', no_show:'status-no_show', checkout:'status-checkout' };
+  const stMap = { confirmed: t('confirmed'), pending: t('pending'), arrived: t('arrived'), doing: t('doing'), completed: t('completed'), cancelled: t('cancelled'), no_show: t('noShow'), checkout: t('checkout') };
 
   document.getElementById('detailTitle').textContent = t('detailTitle');
   // 构建服务列表
@@ -3894,11 +3912,13 @@ function openDetail(id) {
 
   // 根据状态显示/隐藏按钮
   var st = b.status;
-  document.getElementById('btnCloseDetail').style.display = (st === 'cancelled' || st === 'no_show') ? 'none' : 'inline-block';
+  document.getElementById('btnCloseDetail').style.display = (st === 'cancelled' || st === 'no_show' || st === 'checkout') ? 'none' : 'inline-block';
   document.getElementById('btnRestore').style.display = (st === 'cancelled' || st === 'no_show') ? 'inline-block' : 'none';
-  document.getElementById('btnComplete').style.display = (st === 'cancelled' || st === 'no_show' || st === 'completed') ? 'none' : 'inline-block';
+  document.getElementById('btnComplete').style.display = (st === 'cancelled' || st === 'no_show' || st === 'completed' || st === 'checkout') ? 'none' : 'inline-block';
+  document.getElementById('btnCheckout').style.display = (st === 'cancelled' || st === 'no_show' || st === 'checkout') ? 'none' : 'inline-block';
   document.getElementById('btnArrived').style.display = (st === 'confirmed' || st === 'pending') ? 'inline-block' : 'none';
-  document.getElementById('btnNoShow').style.display = (st === 'confirmed' || st === 'pending' || st === 'arrived') ? 'inline-block' : 'none';
+  document.getElementById('btnDoing').style.display = (st === 'confirmed' || st === 'arrived' || st === 'pending') ? 'inline-block' : 'none';
+  document.getElementById('btnNoShow').style.display = (st === 'confirmed' || st === 'pending' || st === 'arrived' || st === 'doing') ? 'inline-block' : 'none';
 }
 
 function editBooking() {
@@ -4036,10 +4056,10 @@ function cancelBooking() {
   }
 }
 
-function restoreBooking() {
+function markDoing() {
   if (editingId) {
     const i = bookings.findIndex(b => b.id === editingId);
-    if (i >= 0) bookings[i].status = 'confirmed';
+    if (i >= 0) bookings[i].status = 'doing';
     closeModal('detailModal');
     renderAll();
   }
@@ -4049,6 +4069,34 @@ function completeBooking() {
   if (editingId) {
     const i = bookings.findIndex(b => b.id === editingId);
     if (i >= 0) bookings[i].status = 'completed';
+    closeModal('detailModal');
+    renderAll();
+  }
+}
+
+// 结账：把同组所有预约标记为已结账
+function checkoutBooking() {
+  if (!editingId) return;
+  var b = bookings.find(function(x) { return x.id === editingId; });
+  if (!b) return;
+  var groupId = b.groupId;
+  if (groupId) {
+    // 同组全部结账
+    bookings.forEach(function(bk) {
+      if (bk.groupId === groupId) bk.status = 'checkout';
+    });
+  } else {
+    // 单独一条结账
+    b.status = 'checkout';
+  }
+  closeModal('detailModal');
+  renderAll();
+}
+
+function restoreBooking() {
+  if (editingId) {
+    const i = bookings.findIndex(b => b.id === editingId);
+    if (i >= 0) bookings[i].status = 'confirmed';
     closeModal('detailModal');
     renderAll();
   }
