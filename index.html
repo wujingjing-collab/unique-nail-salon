@@ -399,8 +399,10 @@ body {
 .detail-status { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 12px; font-weight: 600; }
 .status-confirmed { background: rgba(123,196,164,0.2); color: #4a8a6a; }
 .status-pending { background: rgba(232,196,124,0.2); color: #9a7d3a; }
+.status-arrived { background: rgba(123,196,164,0.3); color: #2d7a4a; font-weight:700; }
 .status-completed { background: rgba(107,184,224,0.2); color: #4a7da8; }
 .status-cancelled { background: rgba(224,124,124,0.2); color: #b04a4a; }
+.status-no_show { background: rgba(180,80,80,0.25); color: #8b2020; font-weight:700; }
 
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -646,7 +648,11 @@ body {
         <label id="lblStatus">状态</label>
         <select id="bkStatus">
           <option value="confirmed" id="optConfirmed">已确认</option>
+          <option value="arrived" id="optArrived">已到店</option>
           <option value="pending" id="optPending">待确认</option>
+          <option value="completed" id="optCompleted">已完成</option>
+          <option value="no_show" id="optNoShow">放鸽子</option>
+          <option value="cancelled" id="optCancelled">已取消</option>
         </select>
       </div>
     </div>
@@ -671,7 +677,9 @@ body {
       <button class="btn btn-primary" onclick="restoreBooking()" id="btnRestore" style="background:var(--success);display:none;">恢复预约</button>
       <button class="btn btn-primary" onclick="editBooking()" id="btnEdit">修改</button>
       <button class="btn btn-secondary" onclick="editBookingTime()" id="btnEditTime">改时间</button>
-      <button class="btn btn-primary" onclick="completeBooking()" id="btnComplete" style="background:var(--success);">标记完成</button>
+      <button class="btn btn-primary" onclick="markArrived()" id="btnArrived" style="background:var(--success);">已到店</button>
+      <button class="btn btn-primary" onclick="completeBooking()" id="btnComplete" style="background:#4a7da8;">标记完成</button>
+      <button class="btn btn-danger" onclick="markNoShow()" id="btnNoShow" style="background:#8b2020;">放鸽子</button>
     </div>
   </div>
 </div>
@@ -990,8 +998,10 @@ const I18N = {
     status: '状态',
     confirmed: '已确认',
     pending: '待确认',
+    arrived: '已到店',
     completed: '已完成',
     cancelled: '已取消',
+    noShow: '放鸽子',
     cancel: '取消',
     save: '保存',
     close: '关闭',
@@ -1182,8 +1192,10 @@ const I18N = {
     status: 'Stato',
     confirmed: 'Confermato',
     pending: 'In attesa',
+    arrived: 'Arrivato',
     completed: 'Completato',
     cancelled: 'Annullato',
+    noShow: 'No show',
     cancel: 'Annulla',
     save: 'Salva',
     close: 'Chiudi',
@@ -1419,7 +1431,7 @@ function getSvcShort(svc) {
   return name;
 }
 function getStaff(id) { return STAFF.find(s => s.id === id); }
-function dayBookings(date) { return bookings.filter(b => b.date === date && b.status !== 'cancelled'); }
+function dayBookings(date) { return bookings.filter(b => b.date === date && b.status !== 'cancelled' && b.status !== 'no_show'); }
 
 // ===== SAMPLE BOOKINGS =====
 function genSamples() {
@@ -1485,12 +1497,18 @@ let _renderAll = function() {
   document.getElementById('lblStatus').textContent = t('status');
   document.getElementById('optConfirmed').textContent = t('confirmed');
   document.getElementById('optPending').textContent = t('pending');
+  document.getElementById('optArrived').textContent = t('arrived');
+  document.getElementById('optCompleted').textContent = t('completed');
+  document.getElementById('optNoShow').textContent = t('noShow');
+  document.getElementById('optCancelled').textContent = t('cancelled');
   document.getElementById('btnCancelBooking').textContent = t('cancel');
   document.getElementById('btnSaveBooking').textContent = t('save');
   document.getElementById('btnCancelBooking2').textContent = t('cancelBooking');
   document.getElementById('btnCloseDetail').textContent = t('close');
   document.getElementById('btnComplete').textContent = t('markComplete');
   document.getElementById('btnRestore').textContent = t('restoreBooking');
+  document.getElementById('btnArrived').textContent = t('arrived');
+  document.getElementById('btnNoShow').textContent = t('noShow');
   document.getElementById('btnEdit').textContent = t('edit');
   document.getElementById('btnEditTime').textContent = t('editTime');
   document.getElementById('skillCancelBtn').textContent = t('close');
@@ -1653,7 +1671,7 @@ function getStaffPerfDetail(staffId, dateStr) {
 function getStaffPerfDetailRange(staffId, startDate, endDate) {
   const myBk = bookings.filter(b => {
     if (b.date < startDate || b.date > endDate) return false;
-    if (b.status !== 'confirmed' && b.status !== 'completed') return false;
+    if (b.status !== 'confirmed' && b.status !== 'arrived' && b.status !== 'completed') return false;
     return b.staffId === staffId;
   });
   let gelRev = 0, massageRev = 0, otherRev = 0;
@@ -2825,7 +2843,7 @@ function rebuildCustomers() {
 
 // ===== 员工业绩统计 =====
 function getStaffPerf(staffId, dateStr) {
-  const dayBk = bookings.filter(b => b.date === dateStr && (b.status === 'confirmed' || b.status === 'completed') && b.staffId === staffId);
+  const dayBk = bookings.filter(b => b.date === dateStr && (b.status === 'confirmed' || b.status === 'arrived' || b.status === 'completed') && b.staffId === staffId);
   let revenue = 0;
   dayBk.forEach(b => { revenue += parseFloat(b.price) || 0; });
   return { revenue, count: dayBk.length };
@@ -3771,8 +3789,8 @@ function openDetail(id) {
   if (!b) return;
   editingId = id;
   const staff = getStaff(b.staffId);
-  const sm = { confirmed:'status-confirmed', pending:'status-pending', completed:'status-completed', cancelled:'status-cancelled' };
-  const stMap = { confirmed: t('confirmed'), pending: t('pending'), completed: t('completed'), cancelled: t('cancelled') };
+  const sm = { confirmed:'status-confirmed', pending:'status-pending', arrived:'status-arrived', completed:'status-completed', cancelled:'status-cancelled', no_show:'status-no_show' };
+  const stMap = { confirmed: t('confirmed'), pending: t('pending'), arrived: t('arrived'), completed: t('completed'), cancelled: t('cancelled'), no_show: t('noShow') };
 
   document.getElementById('detailTitle').textContent = t('detailTitle');
   // 构建服务列表
@@ -3836,10 +3854,12 @@ function openDetail(id) {
   document.getElementById('detailModal').classList.add('show');
 
   // 根据状态显示/隐藏按钮
-  const isCancelled = b.status === 'cancelled';
-  document.getElementById('btnRestore').style.display = isCancelled ? 'inline-block' : 'none';
-  document.getElementById('btnCancelBooking2').style.display = isCancelled ? 'none' : 'inline-block';
-  document.getElementById('btnComplete').style.display = isCancelled ? 'none' : 'inline-block';
+  var st = b.status;
+  document.getElementById('btnCancelBooking2').style.display = (st === 'cancelled' || st === 'no_show') ? 'none' : 'inline-block';
+  document.getElementById('btnRestore').style.display = (st === 'cancelled' || st === 'no_show') ? 'inline-block' : 'none';
+  document.getElementById('btnComplete').style.display = (st === 'cancelled' || st === 'no_show' || st === 'completed') ? 'none' : 'inline-block';
+  document.getElementById('btnArrived').style.display = (st === 'confirmed' || st === 'pending') ? 'inline-block' : 'none';
+  document.getElementById('btnNoShow').style.display = (st === 'confirmed' || st === 'pending' || st === 'arrived') ? 'inline-block' : 'none';
 }
 
 function editBooking() {
@@ -3988,6 +4008,24 @@ function completeBooking() {
   if (editingId) {
     const i = bookings.findIndex(b => b.id === editingId);
     if (i >= 0) bookings[i].status = 'completed';
+    closeModal('detailModal');
+    renderAll();
+  }
+}
+
+function markArrived() {
+  if (editingId) {
+    const i = bookings.findIndex(b => b.id === editingId);
+    if (i >= 0) bookings[i].status = 'arrived';
+    closeModal('detailModal');
+    renderAll();
+  }
+}
+
+function markNoShow() {
+  if (editingId && confirm((lang === 'zh' ? '确定标记为放鸽子？客人未到店。' : 'Segnare come no-show? Il cliente non si è presentato.'))) {
+    const i = bookings.findIndex(b => b.id === editingId);
+    if (i >= 0) bookings[i].status = 'no_show';
     closeModal('detailModal');
     renderAll();
   }
