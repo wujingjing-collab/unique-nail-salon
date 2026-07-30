@@ -674,15 +674,19 @@ body {
       <button class="modal-close" onclick="closeModal('detailModal')">×</button>
     </div>
     <div class="modal-body" id="detailBody"></div>
-    <div class="modal-footer">
-      <button class="btn btn-danger" onclick="cancelBooking()" id="btnCancelBooking2">取消预约</button>
-      <button class="btn btn-secondary" onclick="closeModal('detailModal')" id="btnCloseDetail">关闭</button>
-      <button class="btn btn-primary" onclick="restoreBooking()" id="btnRestore" style="background:var(--success);display:none;">恢复预约</button>
-      <button class="btn btn-primary" onclick="editBooking()" id="btnEdit">修改</button>
-      <button class="btn btn-secondary" onclick="editBookingTime()" id="btnEditTime">改时间</button>
-      <button class="btn btn-primary" onclick="markArrived()" id="btnArrived" style="background:var(--success);">已到店</button>
-      <button class="btn btn-primary" onclick="completeBooking()" id="btnComplete" style="background:#4a7da8;">标记完成</button>
-      <button class="btn btn-danger" onclick="markNoShow()" id="btnNoShow" style="background:#8b2020;">放鸽子</button>
+    <div class="modal-footer" id="detailFooter" style="flex-direction:column;gap:8px;">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;width:100%;">
+        <button class="btn btn-secondary" onclick="closeModal('detailModal')" id="btnCloseDetail" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;">关闭</button>
+        <button class="btn btn-primary" onclick="editBooking()" id="btnEdit" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;">修改</button>
+        <button class="btn btn-secondary" onclick="editBookingTime()" id="btnEditTime" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;">改时间</button>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;width:100%;">
+        <button class="btn btn-primary" onclick="markArrived()" id="btnArrived" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;background:var(--success);">已到店</button>
+        <button class="btn btn-primary" onclick="completeBooking()" id="btnComplete" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;background:#4a7da8;">完成</button>
+        <button class="btn btn-danger" onclick="cancelBooking()" id="btnCancelBooking2" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;">取消</button>
+        <button class="btn btn-primary" onclick="restoreBooking()" id="btnRestore" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;background:var(--success);display:none;">恢复</button>
+        <button class="btn btn-danger" onclick="markNoShow()" id="btnNoShow" style="flex:1;min-width:80px;font-size:12px;padding:8px 4px;background:#8b2020;">放鸽子</button>
+      </div>
     </div>
   </div>
 </div>
