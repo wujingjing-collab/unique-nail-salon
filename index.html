@@ -670,6 +670,7 @@ body {
       <button class="btn btn-secondary" onclick="closeModal('detailModal')" id="btnCloseDetail">关闭</button>
       <button class="btn btn-primary" onclick="restoreBooking()" id="btnRestore" style="background:var(--success);display:none;">恢复预约</button>
       <button class="btn btn-primary" onclick="editBooking()" id="btnEdit">修改</button>
+      <button class="btn btn-secondary" onclick="editBookingTime()" id="btnEditTime">改时间</button>
       <button class="btn btn-primary" onclick="completeBooking()" id="btnComplete" style="background:var(--success);">标记完成</button>
     </div>
   </div>
@@ -998,6 +999,7 @@ const I18N = {
     markComplete: '标记完成',
     restoreBooking: '恢复预约',
     edit: '修改',
+    editTime: '改时间',
     detailTitle: '预约详情',
     customer2: '顾客',
     phone2: '电话',
@@ -1189,6 +1191,7 @@ const I18N = {
     markComplete: 'Completato',
     restoreBooking: 'Ripristina',
     edit: 'Modifica',
+    editTime: 'Mod. orario',
     detailTitle: 'Dettaglio prenotazione',
     customer2: 'Cliente',
     phone2: 'Telefono',
@@ -1489,6 +1492,7 @@ let _renderAll = function() {
   document.getElementById('btnComplete').textContent = t('markComplete');
   document.getElementById('btnRestore').textContent = t('restoreBooking');
   document.getElementById('btnEdit').textContent = t('edit');
+  document.getElementById('btnEditTime').textContent = t('editTime');
   document.getElementById('skillCancelBtn').textContent = t('close');
   document.getElementById('skillSaveBtn').textContent = t('saveBtn');
 
@@ -3724,21 +3728,33 @@ function saveBooking() {
   }
 
   if (editingId) {
-    // 编辑模式：删除同 groupId 的所有旧预约，然后添加新的
-    if (editingGroupId) {
-      // 删除同组的所有旧预约
-      for (let j = bookings.length - 1; j >= 0; j--) {
-        if (bookings[j].groupId === editingGroupId) {
-          bookings.splice(j, 1);
-        }
+    // "只改时间"模式：只更新当前这一条预约的时间，不重建整个组
+    if (window._timeOnlyEdit) {
+      window._timeOnlyEdit = false;
+      var ti = bookings.findIndex(function(x) { return x.id === editingId; });
+      if (ti >= 0) {
+        bookings[ti].time = time;
+        bookings[ti].endTime = endTime;
+        bookings[ti].staffId = staffId;
+        bookings[ti].customer = customer;
+        bookings[ti].phone = document.getElementById('bkPhone').value.trim();
+        bookings[ti].notes = document.getElementById('bkNotes').value.trim();
+        bookings[ti].status = document.getElementById('bkStatus').value;
       }
     } else {
-      // 没有 groupId，只删除当前编辑的这一条
-      const i = bookings.findIndex(b => b.id === editingId);
-      if (i >= 0) bookings.splice(i, 1);
+      // 完整编辑模式：删除同 groupId 的所有旧预约，然后添加新的
+      if (editingGroupId) {
+        for (var j = bookings.length - 1; j >= 0; j--) {
+          if (bookings[j].groupId === editingGroupId) {
+            bookings.splice(j, 1);
+          }
+        }
+      } else {
+        var ei = bookings.findIndex(function(x) { return x.id === editingId; });
+        if (ei >= 0) bookings.splice(ei, 1);
+      }
+      bookingsToSave.forEach(function(bk) { bookings.push(bk); });
     }
-    // 添加新的预约（可能是1条或多条）
-    bookingsToSave.forEach(bk => bookings.push(bk));
     editingGroupId = null;
   } else {
     bookingsToSave.forEach(bk => {
@@ -3895,6 +3911,59 @@ function editBooking() {
 
   onStaffChange();
   document.getElementById('bookingModal').classList.add('show');
+}
+
+// 快速修改单个预约的开始/结束时间（不影响同组其他项目）
+function editBookingTime() {
+  if (!editingId) return;
+  var b = bookings.find(function(x) { return x.id === editingId; });
+  if (!b) return;
+  closeModal('detailModal');
+
+  editingId = b.id;
+  editingGroupId = b.groupId || null;
+
+  // 隐藏服务选择相关部分，只显示时间编辑
+  document.querySelector('#bookingModal .modal-title').textContent = (lang === 'zh' ? '修改时间' : 'Modifica orario') + ' — ' + b.customer;
+
+  // 加载当前预约的数据
+  document.getElementById('bkCustomer').value = b.customer;
+  document.getElementById('bkPhone').value = b.phone || '';
+  document.getElementById('bkNotes').value = b.notes || '';
+  document.getElementById('bkTime').value = b.time;
+  document.getElementById('bkEndTime').value = b.endTime || '';
+  document.getElementById('bkDuration').value = b.duration || 30;
+  document.getElementById('bkPrice').value = b.price != null ? b.price : 0;
+  document.getElementById('bkDiscount').value = b.discount || 0;
+  document.getElementById('bkStatus').value = b.status;
+  updatePaidAmount();
+
+  // 加载当前预约的服务
+  selectedServiceIds = b.serviceIds ? b.serviceIds.slice() : (b.serviceId ? [b.serviceId] : []);
+  customServiceItems = b.customServices ? b.customServices.slice() : [];
+  renderSelectedServices();
+  recalcServiceTotals();
+  document.getElementById('bkServiceSearch').value = '';
+  document.getElementById('serviceResults').style.display = 'none';
+
+  // 填充员工下拉
+  var dateStr = fmtDate(currentDate);
+  var workingStaff = getRosterStaff(dateStr);
+  var ss = document.getElementById('bkStaff');
+  ss.innerHTML = '';
+  workingStaff.forEach(function(s) {
+    var o = document.createElement('option');
+    o.value = s.id;
+    o.textContent = s.name + ' — ' + translateRole(s.role);
+    if (s.id === b.staffId) o.selected = true;
+    ss.appendChild(o);
+  });
+
+  onStaffChange();
+  document.getElementById('bookingModal').classList.add('show');
+
+  // 标记为"只改时间"模式，保存时特殊处理
+  window._timeOnlyEdit = true;
 }
 
 function cancelBooking() {
