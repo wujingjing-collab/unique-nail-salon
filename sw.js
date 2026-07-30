@@ -1,9 +1,8 @@
-const CACHE_NAME = 'unique-nail-v2';
+const CACHE_NAME = 'unique-nail-v3';
 
 // 需要预缓存的资源
 const PRE_CACHE = [
   'index.html',
-  'test.html',
   'sw.js'
 ];
 
@@ -13,7 +12,7 @@ self.addEventListener('install', function(e) {
   e.waitUntil(
     caches.open(CACHE_NAME).then(function(cache) {
       return cache.addAll(PRE_CACHE).catch(function(err) {
-        console.log('SW: 预缓存部分失败 (可能是网络问题):', err);
+        console.log('SW: 预缓存部分失败:', err);
       });
     })
   );
@@ -34,34 +33,68 @@ self.addEventListener('activate', function(e) {
   self.clients.claim();
 });
 
-// 缓存策略：缓存优先 + 网络回退
+// 缓存策略：
+// - HTML 文件：网络优先（确保总是最新代码）
+// - Firebase/CDN 脚本：缓存优先（离线可用）
+// - 其他：缓存优先 + 网络回退
 self.addEventListener('fetch', function(e) {
-  // 跳过非 HTTP(S) 请求
   if (!e.request.url.startsWith('http')) return;
+  if (e.request.method !== 'GET') return;
 
-  e.respondWith(
-    caches.match(e.request).then(function(cached) {
-      // 有缓存直接用缓存（速度最快，且支持离线）
-      if (cached) return cached;
+  var url = e.request.url;
+  var isHTML = url.includes('index.html') || url.includes('test.html') || e.request.mode === 'navigate';
+  var isFirebase = url.includes('firebasejs') || url.includes('gstatic.com');
 
-      // 没缓存就请求网络
-      return fetch(e.request).then(function(response) {
-        // 只缓存成功的 GET 请求
-        if (response && response.status === 200 && e.request.method === 'GET') {
-          var clone = response.clone();
-          caches.open(CACHE_NAME).then(function(cache) {
-            cache.put(e.request, clone);
-          });
-        }
+  if (isHTML) {
+    // HTML: 网络优先，失败时用缓存
+    e.respondWith(
+      fetch(e.request).then(function(response) {
+        var clone = response.clone();
+        caches.open(CACHE_NAME).then(function(cache) {
+          cache.put(e.request, clone);
+        });
         return response;
       }).catch(function() {
-        // 完全离线且无缓存：导航请求返回主页
-        if (e.request.mode === 'navigate') {
-          return caches.match('index.html');
-        }
-        // 其他请求静默失败
-        return new Response('', { status: 408 });
-      });
-    })
-  );
+        return caches.match(e.request).then(function(cached) {
+          return cached || caches.match('index.html');
+        });
+      })
+    );
+  } else if (isFirebase) {
+    // Firebase CDN: 缓存优先（离线可用），失败时请求网络
+    e.respondWith(
+      caches.match(e.request).then(function(cached) {
+        if (cached) return cached;
+        return fetch(e.request).then(function(response) {
+          if (response && response.status === 200) {
+            var clone = response.clone();
+            caches.open(CACHE_NAME).then(function(cache) {
+              cache.put(e.request, clone);
+            });
+          }
+          return response;
+        }).catch(function() {
+          return new Response('', { status: 408 });
+        });
+      })
+    );
+  } else {
+    // 其他资源：缓存优先 + 网络回退
+    e.respondWith(
+      caches.match(e.request).then(function(cached) {
+        if (cached) return cached;
+        return fetch(e.request).then(function(response) {
+          if (response && response.status === 200) {
+            var clone = response.clone();
+            caches.open(CACHE_NAME).then(function(cache) {
+              cache.put(e.request, clone);
+            });
+          }
+          return response;
+        }).catch(function() {
+          return new Response('', { status: 408 });
+        });
+      })
+    );
+  }
 });
